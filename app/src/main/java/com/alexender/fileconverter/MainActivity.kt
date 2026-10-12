@@ -16,6 +16,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfDocument
 import java.io.ByteArrayOutputStream
+import androidx.activity.viewModels
+import com.alexender.fileconverter.viewmodel.ImageToPdfViewModel
 
 private lateinit var pdfNameEditText: EditText
 private lateinit var createPdfButton: Button
@@ -26,7 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var imageAdapter: ImageAdapter
 
-    private val selectedImages = mutableListOf<Uri>()
+    private val viewModel: ImageToPdfViewModel by viewModels()
 
 
     private val selectImagesLauncher =
@@ -36,12 +38,11 @@ class MainActivity : AppCompatActivity() {
 
             if (uris.isNotEmpty()) {
 
-                selectedImages.addAll(uris)
+                viewModel.addImages(uris)
 
                 imageAdapter.notifyDataSetChanged()
 
-                selectedImagesText.text =
-                    "Выбрано изображений: ${selectedImages.size}"
+                updateImagesCount()
             }
         }
 
@@ -73,7 +74,7 @@ class MainActivity : AppCompatActivity() {
 
         val pdfDocument = PdfDocument()
 
-        selectedImages.forEachIndexed { index, uri ->
+        viewModel.selectedImages.forEachIndexed { index, uri ->
 
             val inputStream = contentResolver.openInputStream(uri)
 
@@ -133,18 +134,13 @@ class MainActivity : AppCompatActivity() {
         val imagesRecyclerView =
             findViewById<RecyclerView>(R.id.imagesRecyclerView)
 
-        imageAdapter = ImageAdapter(selectedImages) { position ->
+        imageAdapter = ImageAdapter(viewModel.selectedImages) { position ->
 
-            selectedImages.removeAt(position)
+            viewModel.removeImage(position)
 
             imageAdapter.notifyItemRemoved(position)
 
-            selectedImagesText.text =
-                if (selectedImages.isEmpty()) {
-                    "Изображения не выбраны"
-                } else {
-                    "Выбрано изображений: ${selectedImages.size}"
-                }
+            updateImagesCount()
         }
 
         pdfNameEditText =
@@ -161,7 +157,7 @@ class MainActivity : AppCompatActivity() {
 
         createPdfButton.setOnClickListener {
 
-            if (selectedImages.isEmpty()) {
+            if (viewModel.selectedImages.isEmpty()) {
                 Toast.makeText(
                     this,
                     "Сначала выберите изображения",
@@ -214,8 +210,10 @@ class MainActivity : AppCompatActivity() {
                         return false
                     }
 
-                    val movedItem = selectedImages.removeAt(fromPosition)
-                    selectedImages.add(toPosition, movedItem)
+                    viewModel.moveImage(
+                        fromPosition,
+                        toPosition
+                    )
 
                     imageAdapter.notifyItemMoved(
                         fromPosition,
@@ -238,5 +236,14 @@ class MainActivity : AppCompatActivity() {
         selectImagesButton.setOnClickListener {
             selectImagesLauncher.launch("image/*")
         }
+    }
+
+    private fun updateImagesCount(){
+        selectedImagesText.text =
+            if (viewModel.selectedImages.isEmpty()){
+                "Изображения не найдены"
+            }else{
+                "Выбрано изображений: ${viewModel.selectedImages.size}"
+            }
     }
 }
