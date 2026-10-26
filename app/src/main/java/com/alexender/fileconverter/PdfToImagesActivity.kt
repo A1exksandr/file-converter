@@ -10,6 +10,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.EditText
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.widget.RadioButton
 
 class PdfToImagesActivity : AppCompatActivity() {
 
@@ -117,14 +119,53 @@ class PdfToImagesActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            Toast.makeText(
-                this,
-                "Страницы: ${pages.joinToString()}",
-                Toast.LENGTH_LONG
-            ).show()
+            val selectedFormat =
+                if (findViewById<RadioButton>(R.id.pngRadioButton).isChecked) {
+                    "PNG"
+                } else {
+                    "JPEG"
+                }
 
-            // Здесь следующим блоком будет PDF → изображения
+            showConversionDialog(
+                fileName = getFileName(pdfUri),
+                pages = pages,
+                format = selectedFormat
+            )
         }
+    }
+
+    private fun showConversionDialog(
+        fileName: String,
+        pages: List<Int>,
+        format: String
+    ) {
+
+        val pagesText =
+            pages.joinToString(", ")
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Преобразовать PDF?")
+            .setMessage(
+                "Файл: $fileName\n" +
+                        "Страницы: $pagesText\n" +
+                        "Формат: $format"
+            )
+            .setNegativeButton("Отмена") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setPositiveButton("Преобразовать") { dialog, _ ->
+
+                Toast.makeText(
+                    this,
+                    "Запуск преобразования в $format",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                dialog.dismiss()
+
+                // Здесь следующим этапом будет настоящее PDF → PNG/JPEG
+            }
+            .show()
     }
     private fun getPdfPageCount(uri: Uri): Int {
 

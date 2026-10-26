@@ -262,6 +262,21 @@ class MainActivity : AppCompatActivity() {
 
             startActivity(intent)
         }
+
+        implicitIntentButton.setOnClickListener {
+
+            val message = intentMessageEditText.text
+                .toString()
+                .trim()
+
+            val intent = Intent(
+                "com.alexender.fileconverter.PDF_TO_IMAGES"
+            )
+
+            intent.putExtra("message", message)
+
+            startActivity(intent)
+        }
     }
 
     private fun updateImagesCount(){
