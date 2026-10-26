@@ -18,6 +18,7 @@ import android.graphics.pdf.PdfDocument
 import java.io.ByteArrayOutputStream
 import androidx.activity.viewModels
 import com.alexender.fileconverter.viewmodel.ImageToPdfViewModel
+import android.content.Intent
 
 private lateinit var pdfNameEditText: EditText
 private lateinit var createPdfButton: Button
@@ -235,6 +236,31 @@ class MainActivity : AppCompatActivity() {
 
         selectImagesButton.setOnClickListener {
             selectImagesLauncher.launch("image/*")
+        }
+
+        val intentMessageEditText =
+            findViewById<EditText>(R.id.intentMessageEditText)
+
+        val explicitIntentButton =
+            findViewById<Button>(R.id.explicitIntentButton)
+
+        val implicitIntentButton =
+            findViewById<Button>(R.id.implicitIntentButton)
+
+        explicitIntentButton.setOnClickListener {
+
+            val message = intentMessageEditText.text
+                .toString()
+                .trim()
+
+            val intent = Intent(
+                this,
+                PdfToImagesActivity::class.java
+            )
+
+            intent.putExtra("message", message)
+
+            startActivity(intent)
         }
     }
 
