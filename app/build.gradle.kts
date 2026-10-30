@@ -9,7 +9,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.convectorfiles"
+        applicationId = "com.alexender.fileconverter"
         minSdk = 24
         targetSdk = 36
         versionCode = 2

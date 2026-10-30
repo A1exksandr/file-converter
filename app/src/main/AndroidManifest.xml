@@ -19,15 +19,8 @@
 
         <activity
             android:name=".PdfToImagesActivity"
-            android:exported="true"
-            android:windowSoftInputMode="adjustResize">
-
-            <intent-filter>
-                <action android:name="com.alexender.fileconverter.PDF_TO_IMAGES" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
-        </activity>
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".MainActivity"

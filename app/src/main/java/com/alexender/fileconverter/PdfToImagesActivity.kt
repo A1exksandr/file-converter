@@ -49,11 +49,6 @@ class PdfToImagesActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_pdf_to_images)
 
-        val intentMessageText =
-            findViewById<TextView>(
-                R.id.intentMessageText
-            )
-
         selectedPdfText =
             findViewById(
                 R.id.selectedPdfText
@@ -78,21 +73,6 @@ class PdfToImagesActivity : AppCompatActivity() {
             findViewById<Button>(
                 R.id.convertPdfButton
             )
-
-        val message =
-            intent.getStringExtra("message")
-                ?: ""
-
-        if (message.isNotEmpty()) {
-
-            intentMessageText.text =
-                "$message (Intent)"
-
-        } else {
-
-            intentMessageText.text =
-                "PDF → изображения"
-        }
 
         selectPdfButton.setOnClickListener {
 
