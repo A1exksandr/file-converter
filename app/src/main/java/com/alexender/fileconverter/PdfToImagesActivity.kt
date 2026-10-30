@@ -1,17 +1,24 @@
 package com.alexender.fileconverter
 
+import android.content.ContentValues
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.widget.Button
+import android.widget.EditText
+import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import android.widget.EditText
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import android.widget.RadioButton
 
 class PdfToImagesActivity : AppCompatActivity() {
 
@@ -19,6 +26,7 @@ class PdfToImagesActivity : AppCompatActivity() {
 
     private lateinit var selectedPdfText: TextView
     private lateinit var pageCountText: TextView
+    private lateinit var pagesEditText: EditText
 
     private val selectPdfLauncher =
         registerForActivityResult(
@@ -26,6 +34,7 @@ class PdfToImagesActivity : AppCompatActivity() {
         ) { uri ->
 
             if (uri != null) {
+
                 selectedPdfUri = uri
 
                 selectedPdfText.text =
@@ -41,28 +50,49 @@ class PdfToImagesActivity : AppCompatActivity() {
         setContentView(R.layout.activity_pdf_to_images)
 
         val intentMessageText =
-            findViewById<TextView>(R.id.intentMessageText)
+            findViewById<TextView>(
+                R.id.intentMessageText
+            )
 
         selectedPdfText =
-            findViewById(R.id.selectedPdfText)
+            findViewById(
+                R.id.selectedPdfText
+            )
 
         pageCountText =
-            findViewById(R.id.pageCountText)
+            findViewById(
+                R.id.pageCountText
+            )
+
+        pagesEditText =
+            findViewById(
+                R.id.pagesEditText
+            )
 
         val selectPdfButton =
-            findViewById<Button>(R.id.selectPdfButton)
+            findViewById<Button>(
+                R.id.selectPdfButton
+            )
 
         val convertPdfButton =
-            findViewById<Button>(R.id.convertPdfButton)
-
-        val pagesEditText =
-            findViewById<EditText>(R.id.pagesEditText)
+            findViewById<Button>(
+                R.id.convertPdfButton
+            )
 
         val message =
-            intent.getStringExtra("message") ?: ""
+            intent.getStringExtra("message")
+                ?: ""
 
-        intentMessageText.text =
-            "$message (Intent)"
+        if (message.isNotEmpty()) {
+
+            intentMessageText.text =
+                "$message (Intent)"
+
+        } else {
+
+            intentMessageText.text =
+                "PDF → изображения"
+        }
 
         selectPdfButton.setOnClickListener {
 
@@ -73,9 +103,11 @@ class PdfToImagesActivity : AppCompatActivity() {
 
         convertPdfButton.setOnClickListener {
 
-            val pdfUri = selectedPdfUri
+            val pdfUri =
+                selectedPdfUri
 
             if (pdfUri == null) {
+
                 Toast.makeText(
                     this,
                     "Сначала выберите PDF",
@@ -91,6 +123,7 @@ class PdfToImagesActivity : AppCompatActivity() {
                     .trim()
 
             if (pagesText.isEmpty()) {
+
                 Toast.makeText(
                     this,
                     "Введите номера страниц",
@@ -101,7 +134,20 @@ class PdfToImagesActivity : AppCompatActivity() {
             }
 
             val pageCount =
-                getPdfPageCount(pdfUri)
+                try {
+
+                    getPdfPageCount(pdfUri)
+
+                } catch (e: Exception) {
+
+                    Toast.makeText(
+                        this,
+                        "Не удалось прочитать PDF",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    return@setOnClickListener
+                }
 
             val pages =
                 parsePages(
@@ -110,6 +156,7 @@ class PdfToImagesActivity : AppCompatActivity() {
                 )
 
             if (pages == null) {
+
                 Toast.makeText(
                     this,
                     "Некорректный список страниц",
@@ -120,13 +167,18 @@ class PdfToImagesActivity : AppCompatActivity() {
             }
 
             val selectedFormat =
-                if (findViewById<RadioButton>(R.id.pngRadioButton).isChecked) {
+                if (
+                    findViewById<RadioButton>(
+                        R.id.pngRadioButton
+                    ).isChecked
+                ) {
                     "PNG"
                 } else {
                     "JPEG"
                 }
 
             showConversionDialog(
+                pdfUri = pdfUri,
                 fileName = getFileName(pdfUri),
                 pages = pages,
                 format = selectedFormat
@@ -135,6 +187,7 @@ class PdfToImagesActivity : AppCompatActivity() {
     }
 
     private fun showConversionDialog(
+        pdfUri: Uri,
         fileName: String,
         pages: List<Int>,
         format: String
@@ -144,86 +197,392 @@ class PdfToImagesActivity : AppCompatActivity() {
             pages.joinToString(", ")
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("Преобразовать PDF?")
+            .setTitle(
+                "Преобразовать PDF?"
+            )
             .setMessage(
                 "Файл: $fileName\n" +
                         "Страницы: $pagesText\n" +
                         "Формат: $format"
             )
-            .setNegativeButton("Отмена") { dialog, _ ->
+            .setNegativeButton(
+                "Отмена"
+            ) { dialog, _ ->
+
                 dialog.dismiss()
             }
-            .setPositiveButton("Преобразовать") { dialog, _ ->
+            .setPositiveButton(
+                "Преобразовать"
+            ) { dialog, _ ->
+
+                dialog.dismiss()
 
                 Toast.makeText(
                     this,
-                    "Запуск преобразования в $format",
+                    "Преобразование...",
                     Toast.LENGTH_SHORT
                 ).show()
 
-                dialog.dismiss()
+                Thread {
 
-                // Здесь следующим этапом будет настоящее PDF → PNG/JPEG
+                    try {
+
+                        val savedCount =
+                            convertPdfToImages(
+                                pdfUri = pdfUri,
+                                pages = pages,
+                                format = format
+                            )
+
+                        runOnUiThread {
+
+                            Toast.makeText(
+                                this,
+                                "Сохранено изображений: $savedCount",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+
+                    } catch (e: Exception) {
+
+                        runOnUiThread {
+
+                            Toast.makeText(
+                                this,
+                                "Ошибка: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+
+                }.start()
             }
             .show()
     }
-    private fun getPdfPageCount(uri: Uri): Int {
+
+    private fun convertPdfToImages(
+        pdfUri: Uri,
+        pages: List<Int>,
+        format: String
+    ): Int {
+
+        var savedCount = 0
 
         val descriptor =
             contentResolver.openFileDescriptor(
-                uri,
+                pdfUri,
                 "r"
-            ) ?: return 0
+            )
+                ?: throw IllegalStateException(
+                    "Не удалось открыть PDF"
+                )
 
-        val renderer =
-            PdfRenderer(descriptor)
+        descriptor.use { fileDescriptor ->
 
-        val count =
-            renderer.pageCount
+            PdfRenderer(
+                fileDescriptor
+            ).use { renderer ->
 
-        renderer.close()
-        descriptor.close()
+                for (pageNumber in pages) {
 
-        return count
-    }
-    private fun getFileName(uri: Uri): String {
+                    val pageIndex =
+                        pageNumber - 1
 
-        var fileName = "document.pdf"
+                    if (
+                        pageIndex !in
+                        0 until renderer.pageCount
+                    ) {
+                        continue
+                    }
 
-        contentResolver.query(
-            uri,
-            arrayOf(OpenableColumns.DISPLAY_NAME),
-            null,
-            null,
-            null
-        )?.use { cursor ->
+                    renderer
+                        .openPage(pageIndex)
+                        .use { page ->
 
-            if (cursor.moveToFirst()) {
+                            /*
+                             * Рендерим примерно в двойном
+                             * разрешении, но ограничиваем
+                             * максимальную сторону 3000 px.
+                             */
+                            val maxDimension =
+                                3000f
 
-                val nameIndex =
-                    cursor.getColumnIndex(
-                        OpenableColumns.DISPLAY_NAME
-                    )
+                            val originalMax =
+                                maxOf(
+                                    page.width,
+                                    page.height
+                                ).toFloat()
 
-                if (nameIndex >= 0) {
-                    fileName =
-                        cursor.getString(nameIndex)
+                            val scale =
+                                minOf(
+                                    2f,
+                                    maxDimension /
+                                            originalMax
+                                )
+
+                            val width =
+                                (
+                                        page.width *
+                                                scale
+                                        )
+                                    .toInt()
+                                    .coerceAtLeast(1)
+
+                            val height =
+                                (
+                                        page.height *
+                                                scale
+                                        )
+                                    .toInt()
+                                    .coerceAtLeast(1)
+
+                            val bitmap =
+                                Bitmap.createBitmap(
+                                    width,
+                                    height,
+                                    Bitmap.Config.ARGB_8888
+                                )
+
+                            /*
+                             * Белый фон нужен в том числе
+                             * для JPEG, потому что JPEG
+                             * не поддерживает прозрачность.
+                             */
+                            Canvas(bitmap)
+                                .drawColor(
+                                    Color.WHITE
+                                )
+
+                            page.render(
+                                bitmap,
+                                null,
+                                null,
+                                PdfRenderer.Page
+                                    .RENDER_MODE_FOR_DISPLAY
+                            )
+
+                            saveBitmapToGallery(
+                                bitmap = bitmap,
+                                pageNumber = pageNumber,
+                                format = format
+                            )
+
+                            bitmap.recycle()
+
+                            savedCount++
+                        }
                 }
             }
         }
 
-        return fileName
+        return savedCount
     }
 
-    private fun updatePageCount(uri: Uri) {
+    private fun saveBitmapToGallery(
+        bitmap: Bitmap,
+        pageNumber: Int,
+        format: String
+    ) {
+
+        val isPng =
+            format == "PNG"
+
+        val extension =
+            if (isPng) {
+                "png"
+            } else {
+                "jpg"
+            }
+
+        val mimeType =
+            if (isPng) {
+                "image/png"
+            } else {
+                "image/jpeg"
+            }
+
+        val fileName =
+            "page_${pageNumber}_" +
+                    "${System.currentTimeMillis()}." +
+                    extension
+
+        val values =
+            ContentValues().apply {
+
+                put(
+                    MediaStore.Images.Media
+                        .DISPLAY_NAME,
+                    fileName
+                )
+
+                put(
+                    MediaStore.Images.Media
+                        .MIME_TYPE,
+                    mimeType
+                )
+
+                if (
+                    Build.VERSION.SDK_INT >=
+                    Build.VERSION_CODES.Q
+                ) {
+
+                    put(
+                        MediaStore.Images.Media
+                            .RELATIVE_PATH,
+                        "${Environment.DIRECTORY_PICTURES}/Convectorfiles"
+                    )
+
+                    put(
+                        MediaStore.Images.Media
+                            .IS_PENDING,
+                        1
+                    )
+                }
+            }
+
+        val collection =
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.Q
+            ) {
+
+                MediaStore.Images.Media
+                    .getContentUri(
+                        MediaStore
+                            .VOLUME_EXTERNAL_PRIMARY
+                    )
+
+            } else {
+
+                MediaStore.Images.Media
+                    .EXTERNAL_CONTENT_URI
+            }
+
+        val imageUri =
+            contentResolver.insert(
+                collection,
+                values
+            )
+                ?: throw IllegalStateException(
+                    "Не удалось создать изображение"
+                )
 
         try {
 
-            val count =
+            contentResolver
+                .openOutputStream(
+                    imageUri
+                )
+                ?.use { output ->
+
+                    val compressFormat =
+                        if (isPng) {
+
+                            Bitmap.CompressFormat.PNG
+
+                        } else {
+
+                            Bitmap.CompressFormat.JPEG
+                        }
+
+                    val quality =
+                        if (isPng) {
+                            100
+                        } else {
+                            95
+                        }
+
+                    val success =
+                        bitmap.compress(
+                            compressFormat,
+                            quality,
+                            output
+                        )
+
+                    if (!success) {
+
+                        throw IllegalStateException(
+                            "Ошибка кодирования изображения"
+                        )
+                    }
+
+                    output.flush()
+                }
+                ?: throw IllegalStateException(
+                    "Не удалось открыть файл"
+                )
+
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.Q
+            ) {
+
+                val finishedValues =
+                    ContentValues().apply {
+
+                        put(
+                            MediaStore.Images.Media
+                                .IS_PENDING,
+                            0
+                        )
+                    }
+
+                contentResolver.update(
+                    imageUri,
+                    finishedValues,
+                    null,
+                    null
+                )
+            }
+
+        } catch (e: Exception) {
+
+            contentResolver.delete(
+                imageUri,
+                null,
+                null
+            )
+
+            throw e
+        }
+    }
+
+    private fun getPdfPageCount(
+        uri: Uri
+    ): Int {
+
+        val descriptor =
+            contentResolver
+                .openFileDescriptor(
+                    uri,
+                    "r"
+                )
+                ?: throw IllegalStateException(
+                    "Не удалось открыть PDF"
+                )
+
+        descriptor.use { fileDescriptor ->
+
+            PdfRenderer(
+                fileDescriptor
+            ).use { renderer ->
+
+                return renderer.pageCount
+            }
+        }
+    }
+
+    private fun updatePageCount(
+        uri: Uri
+    ) {
+
+        try {
+
+            val pageCount =
                 getPdfPageCount(uri)
 
             pageCountText.text =
-                "Количество страниц: $count"
+                "Количество страниц: $pageCount"
 
         } catch (e: Exception) {
 
@@ -232,21 +591,24 @@ class PdfToImagesActivity : AppCompatActivity() {
 
             Toast.makeText(
                 this,
-                "Ошибка открытия PDF",
+                "Не удалось прочитать PDF",
                 Toast.LENGTH_SHORT
             ).show()
         }
     }
+
     private fun parsePages(
         input: String,
         pageCount: Int
     ): List<Int>? {
 
-        val result = mutableSetOf<Int>()
+        val result =
+            mutableSetOf<Int>()
 
-        val parts = input
-            .replace(" ", "")
-            .split(",")
+        val parts =
+            input
+                .replace(" ", "")
+                .split(",")
 
         for (part in parts) {
 
@@ -254,20 +616,21 @@ class PdfToImagesActivity : AppCompatActivity() {
                 return null
             }
 
-            if ("-" in part) {
+            if (part.contains("-")) {
 
-                val rangeParts = part.split("-")
+                val range =
+                    part.split("-")
 
-                if (rangeParts.size != 2) {
+                if (range.size != 2) {
                     return null
                 }
 
                 val start =
-                    rangeParts[0].toIntOrNull()
+                    range[0].toIntOrNull()
                         ?: return null
 
                 val end =
-                    rangeParts[1].toIntOrNull()
+                    range[1].toIntOrNull()
                         ?: return null
 
                 if (
@@ -278,7 +641,10 @@ class PdfToImagesActivity : AppCompatActivity() {
                     return null
                 }
 
-                for (page in start..end) {
+                for (
+                page in start..end
+                ) {
+
                     result.add(page)
                 }
 
@@ -299,6 +665,45 @@ class PdfToImagesActivity : AppCompatActivity() {
             }
         }
 
-        return result.sorted()
+        return result
+            .toList()
+            .sorted()
+    }
+
+    private fun getFileName(
+        uri: Uri
+    ): String {
+
+        var fileName =
+            "document.pdf"
+
+        contentResolver
+            .query(
+                uri,
+                null,
+                null,
+                null,
+                null
+            )
+            ?.use { cursor ->
+
+                val nameIndex =
+                    cursor.getColumnIndex(
+                        OpenableColumns.DISPLAY_NAME
+                    )
+
+                if (
+                    nameIndex >= 0 &&
+                    cursor.moveToFirst()
+                ) {
+
+                    fileName =
+                        cursor.getString(
+                            nameIndex
+                        )
+                }
+            }
+
+        return fileName
     }
 }

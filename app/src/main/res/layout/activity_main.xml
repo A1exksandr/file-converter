@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<androidx.core.widget.NestedScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/mainScroll"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:clipToPadding="false">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,87 +15,118 @@
         android:paddingBottom="24dp">
 
         <TextView
-            android:id="@+id/titleText"
+            android:id="@+id/mainTitleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Изображения → PDF"
-            android:textSize="26sp"
+            android:text="Convectorfiles"
+            android:textSize="30sp"
             android:textStyle="bold"
-            android:fontFamily="sans-serif-medium"
-            android:layout_marginBottom="24dp" />
-
-        <Button
-            android:id="@+id/selectImagesButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Добавить изображения" />
+            android:fontFamily="sans-serif-medium" />
 
         <TextView
-            android:id="@+id/selectedImagesText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Изображения не выбраны"
+            android:layout_marginTop="6dp"
+            android:text="Локальное преобразование файлов"
             android:textSize="14sp"
-            android:fontFamily="sans-serif"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="6dp" />
+            android:alpha="0.75" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/imagesRecyclerView"
+        <GridLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false" />
+            android:layout_marginTop="28dp"
+            android:columnCount="2"
+            android:rowCount="1"
+            android:useDefaultMargins="false">
 
-        <EditText
-            android:id="@+id/pdfNameEditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Имя PDF"
-            android:inputType="text"
-            android:text="Document"
-            android:imeOptions="actionDone"
-            android:maxLines="1"
-            android:layout_marginTop="12dp" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/imageToPdfCard"
+                android:layout_width="0dp"
+                android:layout_height="170dp"
+                android:layout_columnWeight="1"
+                android:layout_marginEnd="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="4dp">
 
-        <Button
-            android:id="@+id/createPdfButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Создать PDF"
-            android:layout_marginTop="8dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="18dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="PDF → изображения"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:src="@android:drawable/ic_menu_gallery"
+                        android:contentDescription="Изображения в PDF" />
 
-        <EditText
-            android:id="@+id/intentMessageEditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:hint="Текст для новой Activity"
-            android:inputType="text"
-            android:imeOptions="actionDone"
-            android:maxLines="1" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="Изображения → PDF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/explicitIntentButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Открыть — обычный Intent" />
+                    <TextView
+                        android:layout_width="142dp"
+                        android:layout_height="36dp"
+                        android:layout_marginTop="8dp"
+                        android:alpha="0.75"
+                        android:text="Объединение фото и картинок в PDF"
+                        android:textSize="12sp" />
 
-        <Button
-            android:id="@+id/implicitIntentButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Открыть — неявный Intent" />
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/pdfToImagesCard"
+                android:layout_width="0dp"
+                android:layout_height="170dp"
+                android:layout_columnWeight="1"
+                android:layout_marginStart="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <ImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:src="@android:drawable/ic_menu_save"
+                        android:contentDescription="PDF в изображения" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="PDF → изображения"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Извлечение страниц PDF в PNG или JPEG"
+                        android:textSize="12sp"
+                        android:alpha="0.75" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </GridLayout>
 
     </LinearLayout>
 
-</androidx.core.widget.NestedScrollView>
+</ScrollView>
