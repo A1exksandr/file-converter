@@ -40,5 +40,6 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
-    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
 }

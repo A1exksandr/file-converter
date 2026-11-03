@@ -18,18 +18,18 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
             android:text="Изображения → PDF"
             android:textSize="28sp"
-            android:textStyle="bold"
-            android:fontFamily="sans-serif-medium" />
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="6dp"
+            android:alpha="0.7"
             android:text="Объедините выбранные изображения в один PDF"
-            android:textSize="14sp"
-            android:alpha="0.7" />
+            android:textSize="14sp" />
 
         <Button
             android:id="@+id/selectImagesButton"
@@ -51,7 +51,8 @@
             android:id="@+id/imagesRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false" />
+            android:layout_marginTop="4dp"
+            android:nestedScrollingEnabled="true" />
 
         <EditText
             android:id="@+id/pdfNameEditText"
@@ -106,6 +107,33 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:text="Создать PDF" />
+
+        <LinearLayout
+            android:id="@+id/progressContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/progressText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Создание PDF: 0 / 0"
+                android:textSize="14sp" />
+
+            <ProgressBar
+                android:id="@+id/pdfProgressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:indeterminate="false"
+                android:max="100"
+                android:progress="0" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
