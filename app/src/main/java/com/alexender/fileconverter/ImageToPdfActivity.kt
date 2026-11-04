@@ -1,5 +1,12 @@
 package com.alexender.fileconverter
 
+import android.annotation.SuppressLint
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -7,6 +14,7 @@ import android.graphics.Matrix
 import android.graphics.RectF
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -18,6 +26,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -30,6 +41,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ImageToPdfActivity : AppCompatActivity() {
+
+    companion object {
+
+        private const val PDF_CHANNEL_ID =
+            "pdf_conversion"
+
+        private const val PDF_NOTIFICATION_ID =
+            1001
+    }
 
     private enum class PageOrientation {
         AUTO,
@@ -52,6 +72,16 @@ class ImageToPdfActivity : AppCompatActivity() {
     private lateinit var imageAdapter: ImageAdapter
 
     private val viewModel: ImageToPdfViewModel by viewModels()
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) {
+            /*
+             * Если пользователь запретил уведомления,
+             * сама генерация PDF всё равно продолжится.
+             */
+        }
 
     private val selectImagesLauncher =
         registerForActivityResult(
@@ -89,6 +119,8 @@ class ImageToPdfActivity : AppCompatActivity() {
         setContentView(
             R.layout.activity_image_to_pdf
         )
+
+        createNotificationChannel()
 
         selectImagesButton =
             findViewById(
@@ -280,15 +312,7 @@ class ImageToPdfActivity : AppCompatActivity() {
 
     private fun updateRecyclerViewHeight() {
 
-        /*
-         * Примерная высота одного элемента item_image.xml.
-         */
         val itemHeightDp = 80
-
-        /*
-         * После четырёх элементов список больше не растёт,
-         * а начинает прокручиваться самостоятельно.
-         */
         val maxHeightDp = 320
 
         val density =
@@ -316,10 +340,6 @@ class ImageToPdfActivity : AppCompatActivity() {
         imagesRecyclerView.layoutParams =
             layoutParams
 
-        /*
-         * Если элементов мало, внутренняя прокрутка
-         * вообще не нужна.
-         */
         imagesRecyclerView.isNestedScrollingEnabled =
             itemCount > 4
     }
@@ -343,9 +363,91 @@ class ImageToPdfActivity : AppCompatActivity() {
         }
     }
 
+    /*
+     * Декодирует большую фотографию
+     * в уменьшенном разрешении.
+     *
+     * Например:
+     *
+     * 4000x3000
+     * ↓
+     * 2000x1500
+     *
+     * Это значительно уменьшает расход RAM.
+     */
+    private fun decodeSampledBitmap(
+        uri: Uri,
+        maxSize: Int = 2500
+    ): Bitmap? {
+
+        val boundsOptions =
+            BitmapFactory.Options().apply {
+
+                inJustDecodeBounds =
+                    true
+            }
+
+        contentResolver
+            .openInputStream(uri)
+            ?.use { input ->
+
+                BitmapFactory.decodeStream(
+                    input,
+                    null,
+                    boundsOptions
+                )
+            }
+
+        val originalWidth =
+            boundsOptions.outWidth
+
+        val originalHeight =
+            boundsOptions.outHeight
+
+        if (
+            originalWidth <= 0 ||
+            originalHeight <= 0
+        ) {
+            return null
+        }
+
+        var sampleSize = 1
+
+        while (
+            originalWidth / sampleSize > maxSize ||
+            originalHeight / sampleSize > maxSize
+        ) {
+
+            sampleSize *= 2
+        }
+
+        val decodeOptions =
+            BitmapFactory.Options().apply {
+
+                inSampleSize =
+                    sampleSize
+
+                inPreferredConfig =
+                    Bitmap.Config.ARGB_8888
+            }
+
+        return contentResolver
+            .openInputStream(uri)
+            ?.use { input ->
+
+                BitmapFactory.decodeStream(
+                    input,
+                    null,
+                    decodeOptions
+                )
+            }
+    }
+
     private fun createPdfInBackground(
         outputUri: Uri
     ) {
+
+        requestNotificationPermission()
 
         val imagesSnapshot =
             viewModel.selectedImages.map {
@@ -370,6 +472,11 @@ class ImageToPdfActivity : AppCompatActivity() {
         progressText.text =
             "Создание PDF: 0 / $total"
 
+        showProgressNotification(
+            current = 0,
+            total = total
+        )
+
         createPdfButton.isEnabled =
             false
 
@@ -391,7 +498,19 @@ class ImageToPdfActivity : AppCompatActivity() {
 
                     progressText.text =
                         "Создание PDF: $current / $total"
+
+                    showProgressNotification(
+                        current = current,
+                        total = total
+                    )
                 }
+
+                progressText.text =
+                    "PDF создан: $total / $total"
+
+                showFinishedNotification(
+                    total
+                )
 
                 Toast.makeText(
                     this@ImageToPdfActivity,
@@ -400,6 +519,8 @@ class ImageToPdfActivity : AppCompatActivity() {
                 ).show()
 
             } catch (e: Exception) {
+
+                showErrorNotification()
 
                 Toast.makeText(
                     this@ImageToPdfActivity,
@@ -425,7 +546,9 @@ class ImageToPdfActivity : AppCompatActivity() {
         onProgress: (Int) -> Unit
     ) {
 
-        withContext(Dispatchers.IO) {
+        withContext(
+            Dispatchers.IO
+        ) {
 
             val pdfDocument =
                 PdfDocument()
@@ -610,14 +733,7 @@ class ImageToPdfActivity : AppCompatActivity() {
     ): Bitmap? {
 
         val bitmap =
-            contentResolver
-                .openInputStream(uri)
-                ?.use { input ->
-
-                    BitmapFactory.decodeStream(
-                        input
-                    )
-                }
+            decodeSampledBitmap(uri)
                 ?: return null
 
         val exifRotation =
@@ -691,5 +807,238 @@ class ImageToPdfActivity : AppCompatActivity() {
                 "Выбрано изображений: " +
                         viewModel.selectedImages.size
             }
+    }
+
+    /*
+     * ============================================================
+     * УВЕДОМЛЕНИЯ
+     * ============================================================
+     */
+
+    private fun createNotificationChannel() {
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.O
+        ) {
+
+            val channel =
+                NotificationChannel(
+                    PDF_CHANNEL_ID,
+                    "Создание PDF",
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+
+                    description =
+                        "Прогресс преобразования изображений в PDF"
+                }
+
+            val manager =
+                getSystemService(
+                    NotificationManager::class.java
+                )
+
+            manager.createNotificationChannel(
+                channel
+            )
+        }
+    }
+
+    private fun requestNotificationPermission() {
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            notificationPermissionLauncher.launch(
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+        }
+    }
+
+    private fun canShowNotifications():
+            Boolean {
+
+        if (
+            Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            return false
+        }
+
+        return NotificationManagerCompat
+            .from(this)
+            .areNotificationsEnabled()
+    }
+
+    private fun createNotificationPendingIntent():
+            PendingIntent {
+
+        val intent =
+            Intent(
+                this,
+                ImageToPdfActivity::class.java
+            ).apply {
+
+                flags =
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+
+        return PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or
+                    PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun showProgressNotification(
+        current: Int,
+        total: Int
+    ) {
+
+        if (!canShowNotifications()) {
+            return
+        }
+
+        val notification =
+            NotificationCompat.Builder(
+                this,
+                PDF_CHANNEL_ID
+            )
+                .setSmallIcon(
+                    R.drawable.ic_notification
+                )
+                .setContentTitle(
+                    "Создание PDF"
+                )
+                .setContentText(
+                    "$current из $total изображений"
+                )
+                .setProgress(
+                    total,
+                    current,
+                    false
+                )
+                .setCategory(
+                    NotificationCompat.CATEGORY_PROGRESS
+                )
+                .setOnlyAlertOnce(
+                    true
+                )
+                .setOngoing(
+                    true
+                )
+                .setContentIntent(
+                    createNotificationPendingIntent()
+                )
+                .build()
+
+        NotificationManagerCompat
+            .from(this)
+            .notify(
+                PDF_NOTIFICATION_ID,
+                notification
+            )
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun showFinishedNotification(
+        total: Int
+    ) {
+
+        if (!canShowNotifications()) {
+            return
+        }
+
+        val notification =
+            NotificationCompat.Builder(
+                this,
+                PDF_CHANNEL_ID
+            )
+                .setSmallIcon(
+                    R.drawable.ic_notification
+                )
+                .setContentTitle(
+                    "PDF создан"
+                )
+                .setContentText(
+                    "Обработано изображений: $total"
+                )
+                .setProgress(
+                    0,
+                    0,
+                    false
+                )
+                .setOngoing(
+                    false
+                )
+                .setAutoCancel(
+                    true
+                )
+                .setContentIntent(
+                    createNotificationPendingIntent()
+                )
+                .build()
+
+        NotificationManagerCompat
+            .from(this)
+            .notify(
+                PDF_NOTIFICATION_ID,
+                notification
+            )
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun showErrorNotification() {
+
+        if (!canShowNotifications()) {
+            return
+        }
+
+        val notification =
+            NotificationCompat.Builder(
+                this,
+                PDF_CHANNEL_ID
+            )
+                .setSmallIcon(
+                    R.drawable.ic_notification
+                )
+                .setContentTitle(
+                    "Ошибка создания PDF"
+                )
+                .setContentText(
+                    "Не удалось завершить преобразование"
+                )
+                .setOngoing(
+                    false
+                )
+                .setAutoCancel(
+                    true
+                )
+                .setContentIntent(
+                    createNotificationPendingIntent()
+                )
+                .build()
+
+        NotificationManagerCompat
+            .from(this)
+            .notify(
+                PDF_NOTIFICATION_ID,
+                notification
+            )
     }
 }
